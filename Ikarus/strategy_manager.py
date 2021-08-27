@@ -12,8 +12,9 @@ class StrategyManager():
             "AlwaysEnter": strategies.AlwaysEnter.AlwaysEnter,
             "AlwaysEnter90": strategies.AlwaysEnter90.AlwaysEnter90,
             "FallingKnifeCatcher": strategies.FallingKnifeCatcher.FallingKnifeCatcher,
+            "Str210827": strategies.Str210827.Str210827,
         }
-
+        # TODO: Find a way to get rid of manual strategy adding process
         self.strategy_list = []
         for strategy_name in _config['strategy'].keys():
             strategy_class = self.strategies[strategy_name]

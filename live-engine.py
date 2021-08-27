@@ -390,6 +390,7 @@ async def main(smallest_interval):
 
     strategy_mgr = strategy_manager.StrategyManager(config, symbol_info)
     strategy_list = strategy_mgr.get_strategies()
+    logger.info(f'Strategy Manager configured for:\n {str(strategy_list)}')
 
     bwrapper = binance_wrapper.BinanceWrapper(client, config, telbot)
 

@@ -1,29 +1,31 @@
 import logging
+import statistics as st
 from ..objects import GenericObject
 from ..enums import *
 from .StrategyBase import StrategyBase
 import copy
-from ..exceptions import NotImplementedException
 
 
-class AlwaysEnter(StrategyBase):
+class Str210827(StrategyBase):
 
     def __init__(self, _config, _symbol_info={}):
-        self.name = "AlwaysEnter"
+        self.name = "Str210827"
         self.logger = logging.getLogger('{}.{}'.format(__name__,self.name))
 
-        # TODO: Find a more beautiful way to implemetn this logic
         self.config = _config['strategy'][self.name]
 
         self.quote_currency = _config['broker']['quote_currency']
         self.scales_in_minute = _config['data_input']['scales_in_minute']
-
         # TODO: Make proper handling for symbol_info
         self.symbol_info = _symbol_info
+
         return
 
 
     async def _handle_lto(self, lto, dt_index):
+        """
+        This function decides what to do for the LTOs based on their 'status'
+        """        
         skip_calculation = False
         
         if lto['status'] == STAT_ENTER_EXP:
@@ -49,12 +51,12 @@ class AlwaysEnter(StrategyBase):
                 if self.config['exit']['type'] == TYPE_LIMIT:
                     lto['exit'][TYPE_LIMIT]['price'] *= 1
                     lto['exit'][TYPE_LIMIT]['amount'] = lto['exit'][TYPE_LIMIT]['price'] * lto['exit'][TYPE_LIMIT]['quantity']
-                    lto['exit'][TYPE_LIMIT]['expire'] = StrategyBase._eval_future_candle_time(dt_index,1,self.scales_in_minute[0])
+                    lto['exit'][TYPE_LIMIT]['expire'] = StrategyBase._eval_future_candle_time(dt_index,3,self.scales_in_minute[0])
 
                 elif self.config['exit']['type'] == TYPE_OCO:
                     lto['exit'][TYPE_OCO]['limitPrice'] *= 1
                     lto['exit'][TYPE_OCO]['amount'] = lto['exit'][TYPE_OCO]['limitPrice'] * lto['exit'][TYPE_OCO]['quantity']
-                    lto['exit'][TYPE_OCO]['expire'] = StrategyBase._eval_future_candle_time(dt_index,1,self.scales_in_minute[0])
+                    lto['exit'][TYPE_OCO]['expire'] = StrategyBase._eval_future_candle_time(dt_index,3,self.scales_in_minute[0])
                 skip_calculation = True
 
                 # Apply the filters
@@ -146,27 +148,48 @@ class AlwaysEnter(StrategyBase):
 
             else: pass # Make a brand new decision
             
-            if len(analysis_dict[ao_pair].keys()) != 1: raise NotImplementedException("Multiple time scale!")
-
-            scale = list(analysis_dict[ao_pair].keys())[0]
+            time_dict = analysis_dict[ao_pair]
+            # Since all parameters are handled in a different way, 
+            # there needs to be different handlers for each type of indicator
+            time_scales = list(time_dict.keys())
+            session_time_scale = time_scales[0]
+            trange_mean5 = st.mean(time_dict[session_time_scale]['trange'][-5:])
+            trange_mean20 = st.mean(time_dict[session_time_scale]['trange'][-20:])
 
             # Make decision to enter or not
-            if True:
+            if trange_mean5 < trange_mean20:
                 self.logger.info(f"{ao_pair}: BUY SIGNAL")
                 trade_obj = copy.deepcopy(GenericObject.trade)
                 trade_obj['status'] = STAT_OPEN_ENTER
                 trade_obj['strategy'] = self.name
                 trade_obj['pair'] = ao_pair
                 trade_obj['history'].append(trade_obj['status'])
-                trade_obj['decision_time'] = int(dt_index) # Set decision_time to the the open time of the current kline not the last closed kline
+                trade_obj['decision_time'] = int(dt_index) # Set decision_time to timestamp which is the open time of the current kline (newly started not closed kline)
+                # TODO: give proper values to limit
 
                 # Calculate enter/exit prices
-                enter_price = float(analysis_dict[ao_pair][scale]['low'][-1])/2 # NOTE: Give half of the price to make sure it will enter
-                exit_price = float(analysis_dict[ao_pair][scale]['high'][-1])*2 # NOTE: Give double of the price to make sure it will not exit
-                
+                enter_price = min(time_dict[session_time_scale]['low'][-10:])
+                exit_price = max(time_dict[session_time_scale]['high'][-10:])
+
+                # Calculate enter/exit amount value
+
+                #TODO: Amount calculation is performed to decide how much of the 'free' amount of 
+                # the base asset will be used.
+
+                free_ref_asset = df_balance.loc[self.quote_currency,'free']
+
                 # Example: Buy XRP with 100$ in your account
                 enter_ref_amount=20
+                # TODO: HIGH: Check mininum amount to trade and add this section to here
+                if free_ref_asset > 10:
+                    if free_ref_asset < enter_ref_amount:
+                        enter_ref_amount = free_ref_asset
+                else:
+                    # TODO: Add error logs and send notification
+                    return {}
 
+                # TODO: HIGH: In order to not to face with an issue with dust, exit amount might be "just a bit less" then what it should be
+                # Example:
                 #   Buy XRP from the price XRPUSDT: 0.66 (Price of 1XRP = 0.66$), use 100$ to make the trade
                 #   151,51 = 100$ / 0.66
                 enter_quantity = enter_ref_amount / enter_price
@@ -180,9 +203,9 @@ class AlwaysEnter(StrategyBase):
                 exit_type = self.config['exit']['type']
 
                 trade_obj['enter'] = await StrategyBase._create_enter_module(enter_type, enter_price, enter_quantity, enter_ref_amount, 
-                                                                        StrategyBase._eval_future_candle_time(dt_index,0,self.scales_in_minute[0])) # NOTE: Multiple scale is not supported
+                                                                        StrategyBase._eval_future_candle_time(dt_index,4,self.scales_in_minute[0])) # NOTE: Multiple scale is not supported
                 trade_obj['exit'] = await StrategyBase._create_exit_module(exit_type, enter_price, enter_quantity, exit_price, exit_ref_amount, 
-                                                                        StrategyBase._eval_future_candle_time(dt_index,0,self.scales_in_minute[0])) # NOTE: Multiple scale is not supported
+                                                                        StrategyBase._eval_future_candle_time(dt_index,9,self.scales_in_minute[0])) # NOTE: Multiple scale is not supported
 
                 # TODO: Check the free amount of quote currency
                 free_ref_asset = df_balance.loc[self.quote_currency,'free']
@@ -195,8 +218,6 @@ class AlwaysEnter(StrategyBase):
                 if not await StrategyBase.check_min_notional(trade_obj['enter'][enter_type]['price'], trade_obj['enter'][enter_type]['quantity'], self.symbol_info):
                     # TODO: Notification about min_notional
                     continue
-
-                # Normally trade id should be unique and be given by the broker. Until it is executed assign the current ts. It will be updated at execution anyway
                 trade_objects.append(trade_obj)
 
             else:

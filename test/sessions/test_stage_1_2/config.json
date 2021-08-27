@@ -25,13 +25,13 @@
                 "exit_expire": "update"
             }
         },
-        "AlwaysEnter90": {
+        "Str210827": {
             "pairs": ["BTCUSDT"],
             "enter": {
                 "type": "limit"
             },
             "exit": {
-                "type": "limit"
+                "type": "oco"
             },
             "action_mapping": {
                 "enter_expire": "cancel",
