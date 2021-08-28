@@ -523,6 +523,7 @@ class BinanceWrapper():
                 # NOTE: This should not be a problem because if the analysis affected by this missing value,
                 #       then the length should be greater.
                 #       On the other hand, the lackness of the oldest value may help or not who knows?
+                df = df.astype(float)
                 do[row["scale"]] = df
             do_dict[pair] = do
             self.logger.debug("decompose ended [{}]:".format(pair))
