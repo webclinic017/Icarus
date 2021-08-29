@@ -69,7 +69,7 @@
             "program": ".\\live-engine.py",
             "console": "integratedTerminal",
             "args": [
-                ".\\test\\sessions\\live\\config.json"
+                ".\\test\\sessions\\test_stage_1_2\\config.json"
             ]
         }
     ]

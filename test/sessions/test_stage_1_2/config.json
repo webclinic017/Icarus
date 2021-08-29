@@ -5,7 +5,7 @@
     "mongodb":{
         "host": "localhost",
         "port": 27017,
-        "clean": true
+        "clean": false
     },
     "broker": {
         "quote_currency": "USDT",
@@ -18,7 +18,7 @@
                 "type": "limit"
             },
             "exit": {
-                "type": "oco"
+                "type": "limit"
             },
             "action_mapping": {
                 "enter_expire": "cancel",
@@ -47,8 +47,8 @@
     },
     "data_input": {
         "all_pairs": ["BTCUSDT"],
-        "scale":["1m"],
-        "length_str":[ "12 hour" ],
+        "scale":["15m"],
+        "length_str":[ "1 day" ],
         "length_int":[ 96 ]
     }
 }

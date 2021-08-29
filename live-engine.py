@@ -36,7 +36,7 @@ def setup_logger(_log_lvl):
     logger.setLevel(logging.DEBUG)
 
     rfh = TimedRotatingFileHandler(filename=log_filename,
-                                   when='H',
+                                   when='D',
                                    interval=1,
                                    backupCount=5)
 
@@ -324,9 +324,9 @@ async def application(strategy_list, bwrapper):
     data_dict, orders = await asyncio.gather(*pre_calc_1_coroutines)
 
     if len(lto_list): 
-        orders = await lto_manipulator.fill_open_enter(lto_list, orders)
-        orders = await lto_manipulator.fill_open_exit_limit(lto_list, orders)
-        orders = await lto_manipulator.limit_maker_taken_oco(lto_list, orders)
+        #orders = await lto_manipulator.fill_open_enter(lto_list, orders)
+        #orders = await lto_manipulator.fill_open_exit_limit(lto_list, orders)
+        #orders = await lto_manipulator.limit_maker_taken_oco(lto_list, orders)
         #orders = await lto_manipulator.stoploss_taken_oco([lto_list[1]], orders)
         pass
 
@@ -412,10 +412,16 @@ async def main(smallest_interval):
 
             server_time = await client.get_server_time()
             logger.debug(f'System time: {server_time["serverTime"]}')
-            start_ts = int(server_time['serverTime']/1000)                      # NOTE: The smallest time interval is 1 minute
-            start_ts = start_ts - (start_ts % 60) + smallest_interval*60 + 1    # (x minute) * (60 sec) + (1 second) ahead
-            logger.debug(f'Cycle start time: {start_ts}')
-            result = await asyncio.create_task(run_at(start_ts, application(strategy_list, bwrapper)))
+
+
+            current_time = int(server_time['serverTime']/1000)                                              # exact second
+            current_time -= (current_time % 60)                                                             # exact minute
+            current_time -= (current_time % (smallest_interval*60) )                                        # exact scale
+            # TODO: If the smallest_interval is not in 'xxm' format such as '1h', '1d' etc. more peeling will be required.
+            next_start_time = current_time + (smallest_interval*60) + 1 
+
+            logger.debug(f'Cycle start time: {next_start_time}')
+            result = await asyncio.create_task(run_at(next_start_time, application(strategy_list, bwrapper)))
             
             '''
             # NOTE: The logic below is for gathering data every 'period' seconds (Good for testing and not waiting)
