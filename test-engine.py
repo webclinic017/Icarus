@@ -7,7 +7,7 @@ from Ikarus import binance_wrapper, performance, strategy_manager, notifications
 from Ikarus.enums import *
 from Ikarus.exceptions import NotImplementedException
 from Ikarus.utils import time_scale_to_second, get_closed_hto, get_enter_expire_hto, get_exit_expire_hto, \
-    get_min_scale, get_pair_min_period_mapping, eval_total_capital, eval_total_capital_in_lto, calculate_fee
+    get_min_scale, round_to_period, eval_total_capital, eval_total_capital_in_lto, calculate_fee
 import logging
 from logging.handlers import TimedRotatingFileHandler
 import pandas as pd
@@ -17,7 +17,6 @@ import bson
 from itertools import chain, groupby
 import operator
 import itertools
-from scripts import finplot_wrapper as fplot
 from Ikarus.resource_allocator import ResourceAllocator 
 from Ikarus import balance_manager
 from decimal import Decimal, getcontext
@@ -441,6 +440,11 @@ async def main():
     session_end_timestamp = int(datetime.timestamp(session_end_time))
 
     # Iterate through the time stamps
+    # BUG: Start time is 2016-05-12 12:15:00, if you only choose 1d, the you should expect to start 2016-05-13 00:00:00
+    ikarus_cycle_period_in_sec = time_scale_to_second(ikarus_cycle_period)
+    session_start_timestamp = round_to_period(session_start_timestamp, ikarus_cycle_period_in_sec, direction='ceiling')
+    session_end_timestamp = round_to_period(session_end_timestamp, ikarus_cycle_period_in_sec, direction='floor')
+
     total_len = int((session_end_timestamp - session_start_timestamp) / time_scale_to_second(ikarus_cycle_period)) # length = Second / Min*60
     printProgressBar(0, total_len, prefix = 'Progress:', suffix = 'Complete', length = 50)
 

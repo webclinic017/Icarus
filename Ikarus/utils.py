@@ -187,3 +187,24 @@ async def get_min_scale(ordered_scales, pool):
             return scale
 
     return None
+
+def round_to_period(current_time, period_min, direction='floor', offset=0):
+    """
+    Args:
+        current_time ([type]): [description]
+        period_min ([type]): [description]
+        direction (str, optional): [floor|ceiling]. Defaults to 'floor'.
+        offset (int, optional): [description]. Defaults to 0.
+
+    Returns:
+        [int]: [rounded_time]
+    """    
+    current_time -= (current_time % 60)                         # exact minute
+    current_time -= (current_time % period_min )                # exact scale
+    if direction == 'floor':
+        rounded_time = current_time + offset
+    elif direction == 'ceiling':
+        rounded_time = current_time + period_min + offset
+    else:
+        raise Exception(f'Unknown direction: {direction}')
+    return int(rounded_time)
